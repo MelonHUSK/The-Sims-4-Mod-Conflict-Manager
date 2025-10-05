@@ -39,3 +39,19 @@
 
 # debug information files
 *.dwo
+
+# Visual Studio temporary files
+.vs/
+*.suo
+*.user
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+x64/
+x86/
