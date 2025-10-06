@@ -70,41 +70,41 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 {
                     FileInfo fileInfo = new FileInfo(filePath);
 
-                    // Create a ModInfo object (for now with dummy data)
-                    // Later we'll parse the actual .package file
+                    // Parse the .package file to extract metadata
+                    DBPFReader.PackageInfo packageInfo = DBPFReader.ReadPackageFile(filePath);
+
+                    // Create a ModInfo object with parsed data
                     ModInfo mod = new ModInfo
                     {
-                        ModName = Path.GetFileNameWithoutExtension(filePath),
-                        Creator = "Unknown", // Will be extracted from package
-                        RequiredVersion = "1.0.0.0", // Will be extracted from package
+                        ModName = packageInfo.ModName,
+                        Creator = packageInfo.Creator,
+                        RequiredVersion = packageInfo.GameVersion,
                         FileSize = FormatFileSize(fileInfo.Length),
                         FilePath = filePath,
-                        Status = "✓", // Default status
+                        Status = "✓",
                         Issue = "No issues detected"
                     };
 
-                    // TODO: Add actual conflict detection logic here
-                    // For now, simulate random results
-                    Random rand = new Random(filePath.GetHashCode());
-                    int statusRoll = rand.Next(0, 10);
-
-                    if (statusRoll < 7) // 70% compatible
-                    {
-                        mod.Status = "✓";
-                        mod.Issue = "Compatible";
-                        compatible++;
-                    }
-                    else if (statusRoll < 9) // 20% warning
+                    // Check if it's a valid DBPF file
+                    if (!packageInfo.IsValid)
                     {
                         mod.Status = "⚠";
-                        mod.Issue = "May cause conflicts with game version 1.108";
+                        mod.Issue = "Not a valid DBPF package file";
                         warnings++;
                     }
-                    else // 10% conflict
+                    // Check if it's a script mod (higher conflict risk)
+                    else if (DBPFReader.IsScriptMod(filePath))
                     {
-                        mod.Status = "✗";
-                        mod.Issue = "Incompatible with current game version";
-                        conflicts++;
+                        mod.Status = "⚠";
+                        mod.Issue = "Script mod - may require updates for new game versions";
+                        mod.ModName += " [SCRIPT]";
+                        warnings++;
+                    }
+                    else
+                    {
+                        mod.Status = "✓";
+                        mod.Issue = $"Contains {packageInfo.ResourceCount} resources";
+                        compatible++;
                     }
 
                     modsList.Add(mod);
