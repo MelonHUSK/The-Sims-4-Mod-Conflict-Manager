@@ -77,8 +77,6 @@ namespace The_Sims_4_Mod_Conflict_Manager
                     ModInfo mod = new ModInfo
                     {
                         ModName = packageInfo.ModName,
-                        Creator = packageInfo.Creator,
-                        RequiredVersion = packageInfo.GameVersion,
                         FileSize = FormatFileSize(fileInfo.Length),
                         FilePath = filePath,
                         Status = "✓",
@@ -161,8 +159,6 @@ namespace The_Sims_4_Mod_Conflict_Manager
     {
         public string Status { get; set; } = string.Empty;
         public string ModName { get; set; } = string.Empty;
-        public string Creator { get; set; } = string.Empty;
-        public string RequiredVersion { get; set; } = string.Empty;
         public string FileSize { get; set; } = string.Empty;
         public string Issue { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;

@@ -8,7 +8,7 @@
         Height="600" 
         Width="1000"
         WindowStartupLocation="CenterScreen">
-    
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -29,7 +29,7 @@
                            FontWeight="Bold" 
                            Foreground="White"
                            HorizontalAlignment="Center"/>
-                <TextBlock Text="Detect and manage conflicting mods with the latest game version" 
+                <TextBlock Text="Detect and manage conflicting mods with your current game version" 
                            FontSize="12" 
                            Foreground="#BDC3C7"
                            HorizontalAlignment="Center"
@@ -57,7 +57,7 @@
                            VerticalAlignment="Center"
                            FontWeight="SemiBold"
                            Margin="0,0,10,0"/>
-                
+
                 <TextBox Grid.Column="1" 
                          x:Name="ModsFolderTextBox"
                          VerticalAlignment="Center"
@@ -65,7 +65,7 @@
                          IsReadOnly="True"
                          Background="#ECF0F1"
                          Text="No folder selected..."/>
-                
+
                 <Button Grid.Column="2" 
                         x:Name="BrowseFolderButton"
                         Content="Browse..."
@@ -73,7 +73,7 @@
                         Height="30"
                         Margin="10,0,10,0"
                         Click="BrowseFolderButton_Click"/>
-                
+
                 <Button Grid.Column="3" 
                         x:Name="ScanModsButton"
                         Content="Scan Mods"
@@ -184,12 +184,6 @@
                         <DataGridTextColumn Header="Mod Name" 
                                             Binding="{Binding ModName}" 
                                             Width="*"/>
-                        <DataGridTextColumn Header="Creator" 
-                                            Binding="{Binding Creator}" 
-                                            Width="150"/>
-                        <DataGridTextColumn Header="Required Version" 
-                                            Binding="{Binding RequiredVersion}" 
-                                            Width="120"/>
                         <DataGridTextColumn Header="File Size" 
                                             Binding="{Binding FileSize}" 
                                             Width="100"/>
