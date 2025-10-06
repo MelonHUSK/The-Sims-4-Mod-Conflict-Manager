@@ -264,6 +264,17 @@ namespace The_Sims_4_Mod_Conflict_Manager
 
             string status = patchStatus.ToLower().Trim();
 
+            // Broken/Conflict statuses 
+            // Put this before compatible because "not working" contains "working" lol
+            if (status.Contains("broken") ||
+                status.Contains("outdated") ||
+                status.Contains("not working") ||
+                status.Contains("crashes") ||
+                status.Contains("error"))
+            {
+                return "conflict";
+            }
+
             // Compatible/Working statuses
             if (status.Contains("updated") ||
                 status.Contains("working") ||
@@ -273,16 +284,6 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 status.Contains("ok"))
             {
                 return "compatible";
-            }
-
-            // Broken/Conflict statuses
-            if (status.Contains("broken") ||
-                status.Contains("outdated") ||
-                status.Contains("not working") ||
-                status.Contains("crashes") ||
-                status.Contains("error"))
-            {
-                return "conflict";
             }
 
             // Warning statuses
