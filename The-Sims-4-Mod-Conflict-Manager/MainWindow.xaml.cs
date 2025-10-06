@@ -180,6 +180,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 // Mod found in database interpret the patch status
                 string interpretedStatus = ConflictDataLoader.InterpretPatchStatus(conflictInfo.PatchStatus);
                 System.Diagnostics.Debug.WriteLine($"  Mod: {modInfo.ModName} | PatchStatus: '{conflictInfo.PatchStatus}' | Interpreted as: '{interpretedStatus}'");
+                modInfo.MatchedModName = conflictInfo.ModName;
 
                 switch (interpretedStatus)
                 {
@@ -236,6 +237,9 @@ namespace The_Sims_4_Mod_Conflict_Manager
                     modInfo.Issue = "Not found in conflict database - status unknown";
                     statusType = StatusType.Warning;
                 }
+
+                // Set name to not found in database
+                modInfo.MatchedModName = "Not in database";
             }
 
             return (modInfo, statusType);
@@ -272,6 +276,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
     {
         public string Status { get; set; } = string.Empty;
         public string ModName { get; set; } = string.Empty;
+        public string MatchedModName { get; set; } = string.Empty;
         public string FileSize { get; set; } = string.Empty;
         public string Issue { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;

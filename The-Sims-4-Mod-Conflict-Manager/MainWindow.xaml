@@ -184,6 +184,9 @@
                         <DataGridTextColumn Header="Mod Name" 
                                             Binding="{Binding ModName}" 
                                             Width="*"/>
+                        <DataGridTextColumn Header="Matched To" 
+                                            Binding="{Binding MatchedModName}" 
+                                            Width="*"/>
                         <DataGridTextColumn Header="File Size" 
                                             Binding="{Binding FileSize}" 
                                             Width="100"/>
