@@ -202,15 +202,23 @@
                 CornerRadius="5"
                 Margin="0,10,0,0">
             <Grid>
-                <TextBlock x:Name="StatusText" 
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           x:Name="StatusText" 
                            Text="Ready. Select your Mods folder to begin scanning."
                            VerticalAlignment="Center"
-                           Foreground="#7F8C8D"/>
-                <ProgressBar x:Name="ScanProgressBar" 
+                           Foreground="#7F8C8D"
+                           Margin="0,0,0,5"/>
+
+                <ProgressBar Grid.Row="1"
+                             x:Name="ScanProgressBar" 
                              Height="20"
                              Visibility="Collapsed"
-                             HorizontalAlignment="Right"
-                             Width="200"/>
+                             HorizontalAlignment="Stretch"/>
             </Grid>
         </Border>
     </Grid>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Win32;
 
@@ -38,7 +39,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
         }
 
         // Scan Mods button - Scan the folder for .package files
-        private void ScanModsButton_Click(object sender, RoutedEventArgs e)
+        private async void ScanModsButton_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(selectedModsFolder) || !Directory.Exists(selectedModsFolder))
             {
@@ -46,17 +47,22 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 return;
             }
 
+            // Disable buttons during scan
+            ScanModsButton.IsEnabled = false;
+            BrowseFolderButton.IsEnabled = false;
+
             // Clear previous results
             modsList.Clear();
             ResetStatistics();
 
             StatusText.Text = "Loading conflict database from Google Sheets...";
             ScanProgressBar.Visibility = Visibility.Visible;
+            ScanProgressBar.IsIndeterminate = true;
 
             try
             {
-                // Load the conflict data from Google Sheets
-                bool dataLoaded = ConflictDataLoader.LoadConflictData();
+                // Load the conflict data from Google Sheets (async)
+                bool dataLoaded = await ConflictDataLoader.LoadConflictDataAsync();
 
                 if (!dataLoaded)
                 {
@@ -69,8 +75,11 @@ namespace The_Sims_4_Mod_Conflict_Manager
                     StatusText.Text = $"Database loaded: {stats.total} known mods. Scanning folder...";
                 }
 
+                ScanProgressBar.IsIndeterminate = false;
+
                 // Get all .package files recursively
-                string[] packageFiles = Directory.GetFiles(selectedModsFolder, "*.package", SearchOption.AllDirectories);
+                string[] packageFiles = await Task.Run(() =>
+                    Directory.GetFiles(selectedModsFolder, "*.package", SearchOption.AllDirectories));
 
                 StatusText.Text = $"Found {packageFiles.Length} mod files. Analyzing...";
 
@@ -79,91 +88,39 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 int conflicts = 0;
                 int warnings = 0;
 
+                // Setup progress bar
+                ScanProgressBar.Minimum = 0;
+                ScanProgressBar.Maximum = packageFiles.Length;
+                ScanProgressBar.Value = 0;
+
                 // Process each mod file
-                foreach (string filePath in packageFiles)
+                for (int i = 0; i < packageFiles.Length; i++)
                 {
-                    FileInfo fileInfo = new FileInfo(filePath);
+                    string filePath = packageFiles[i];
 
-                    // Parse the .package file to extract basic metadata
-                    DBPFReader.PackageInfo packageInfo = DBPFReader.ReadPackageFile(filePath);
+                    // Process this mod on a background thread
+                    var result = await Task.Run(() => ProcessModFile(filePath));
 
-                    // Create a ModInfo object with parsed data
-                    ModInfo mod = new ModInfo
+                    // Update counts based on status
+                    switch (result.statusType)
                     {
-                        ModName = packageInfo.ModName,
-                        FileSize = FormatFileSize(fileInfo.Length),
-                        FilePath = filePath,
-                        Status = "✓",
-                        Issue = "No issues detected"
-                    };
-
-                    // Check against the conflict database
-                    var conflictInfo = ConflictDataLoader.CheckModConflict(mod.ModName);
-
-                    if (conflictInfo != null)
-                    {
-                        // Mod found in database - interpret the patch status
-                        string interpretedStatus = ConflictDataLoader.InterpretPatchStatus(conflictInfo.PatchStatus);
-
-                        switch (interpretedStatus)
-                        {
-                            case "conflict":
-                                mod.Status = "✗";
-                                mod.Issue = $"{conflictInfo.PatchStatus}";
-                                if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
-                                    mod.Issue += $" - {conflictInfo.Notes}";
-                                conflicts++;
-                                break;
-
-                            case "warning":
-                                mod.Status = "⚠";
-                                mod.Issue = $"{conflictInfo.PatchStatus}";
-                                if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
-                                    mod.Issue += $" - {conflictInfo.Notes}";
-                                warnings++;
-                                break;
-
-                            case "compatible":
-                                mod.Status = "✓";
-                                mod.Issue = $"{conflictInfo.PatchStatus}";
-                                if (!string.IsNullOrWhiteSpace(conflictInfo.LastKnownUpdate))
-                                    mod.Issue += $" (Updated: {conflictInfo.LastKnownUpdate})";
-                                compatible++;
-                                break;
-
-                            default:
-                                mod.Status = "?";
-                                mod.Issue = $"Unknown status: {conflictInfo.PatchStatus}";
-                                warnings++;
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        // Mod not in database - do basic checks
-                        if (!packageInfo.IsValid)
-                        {
-                            mod.Status = "⚠";
-                            mod.Issue = "Not a valid DBPF package file";
+                        case StatusType.Compatible:
+                            compatible++;
+                            break;
+                        case StatusType.Conflict:
+                            conflicts++;
+                            break;
+                        case StatusType.Warning:
                             warnings++;
-                        }
-                        else if (DBPFReader.IsScriptMod(filePath))
-                        {
-                            mod.Status = "⚠";
-                            mod.Issue = "Script mod - not in database, manual check recommended";
-                            mod.ModName += " [SCRIPT]";
-                            warnings++;
-                        }
-                        else
-                        {
-                            mod.Status = "?";
-                            mod.Issue = "Not found in conflict database - status unknown";
-                            warnings++;
-                        }
+                            break;
                     }
 
-                    modsList.Add(mod);
+                    modsList.Add(result.mod);
                     totalMods++;
+
+                    // Update progress bar and status
+                    ScanProgressBar.Value = i + 1;
+                    StatusText.Text = $"Processing mods... {i + 1}/{packageFiles.Length}";
                 }
 
                 // Update statistics
@@ -182,7 +139,105 @@ namespace The_Sims_4_Mod_Conflict_Manager
             finally
             {
                 ScanProgressBar.Visibility = Visibility.Collapsed;
+                ScanModsButton.IsEnabled = true;
+                BrowseFolderButton.IsEnabled = true;
             }
+        }
+
+        // Enum for status types
+        private enum StatusType
+        {
+            Compatible,
+            Conflict,
+            Warning
+        }
+
+        // Process a single mod file (runs on background thread)
+        private (ModInfo mod, StatusType statusType) ProcessModFile(string filePath)
+        {
+            FileInfo fileInfo = new FileInfo(filePath);
+
+            // Parse the .package file to extract basic metadata
+            DBPFReader.PackageInfo packageInfo = DBPFReader.ReadPackageFile(filePath);
+
+            // Create a ModInfo object with parsed data
+            ModInfo modInfo = new ModInfo
+            {
+                ModName = packageInfo.ModName,
+                FileSize = FormatFileSize(fileInfo.Length),
+                FilePath = filePath,
+                Status = "✓",
+                Issue = "No issues detected"
+            };
+
+            StatusType statusType = StatusType.Warning;
+
+            // Check against the conflict database
+            var conflictInfo = ConflictDataLoader.CheckModConflict(modInfo.ModName);
+
+            if (conflictInfo != null)
+            {
+                // Mod found in database - interpret the patch status
+                string interpretedStatus = ConflictDataLoader.InterpretPatchStatus(conflictInfo.PatchStatus);
+
+                switch (interpretedStatus)
+                {
+                    case "conflict":
+                        modInfo.Status = "✗";
+                        modInfo.Issue = $"{conflictInfo.PatchStatus}";
+                        if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
+                            modInfo.Issue += $" - {conflictInfo.Notes}";
+                        statusType = StatusType.Conflict;
+                        break;
+
+                    case "warning":
+                        modInfo.Status = "⚠";
+                        modInfo.Issue = $"{conflictInfo.PatchStatus}";
+                        if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
+                            modInfo.Issue += $" - {conflictInfo.Notes}";
+                        statusType = StatusType.Warning;
+                        break;
+
+                    case "compatible":
+                        modInfo.Status = "✓";
+                        modInfo.Issue = $"{conflictInfo.PatchStatus}";
+                        if (!string.IsNullOrWhiteSpace(conflictInfo.LastKnownUpdate))
+                            modInfo.Issue += $" (Updated: {conflictInfo.LastKnownUpdate})";
+                        statusType = StatusType.Compatible;
+                        break;
+
+                    default:
+                        modInfo.Status = "?";
+                        modInfo.Issue = $"Unknown status: {conflictInfo.PatchStatus}";
+                        statusType = StatusType.Warning;
+                        break;
+                }
+            }
+            else
+            {
+                // Mod not in database - do basic checks
+                if (!packageInfo.IsValid)
+                {
+                    modInfo.Status = "⚠";
+                    modInfo.Issue = "Not a valid DBPF package file";
+                    statusType = StatusType.Warning;
+                }
+                else if (DBPFReader.IsScriptMod(filePath))
+                {
+                    modInfo.Status = "⚠";
+                    modInfo.Issue = "Script mod - not in database, manual check recommended";
+                    modInfo.ModName += " [SCRIPT]";
+                    statusType = StatusType.Warning;
+                }
+                else
+                {
+                    modInfo.Status = "?";
+                    modInfo.Issue = "Not found in conflict database - status unknown";
+                    statusType = StatusType.Warning;
+                }
+            }
+
+            return (modInfo, statusType);
         }
 
         // Helper method to format file size

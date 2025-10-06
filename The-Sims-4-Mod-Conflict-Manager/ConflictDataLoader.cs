@@ -24,6 +24,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
         }
 
         private static List<ModConflictInfo> conflictDatabase = new List<ModConflictInfo>();
+        private static Dictionary<string, ModConflictInfo> quickLookup = new Dictionary<string, ModConflictInfo>();
         private static DateTime lastUpdated = DateTime.MinValue;
 
         /// <summary>
