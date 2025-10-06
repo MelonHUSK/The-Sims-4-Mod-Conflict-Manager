@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Quickenshtein;
 
 namespace The_Sims_4_Mod_Conflict_Manager
 {
@@ -44,6 +45,10 @@ namespace The_Sims_4_Mod_Conflict_Manager
 
                     // Parse the CSV
                     conflictDatabase = ParseCSV(csvContent);
+
+                    // Build quick lookup dictionary for O(1) searches
+                    BuildQuickLookup();
+
                     lastUpdated = DateTime.Now;
 
                     return conflictDatabase.Count > 0;
@@ -133,6 +138,28 @@ namespace The_Sims_4_Mod_Conflict_Manager
         }
 
         /// <summary>
+        /// Builds a quick lookup dictionary for fast mod name matching
+        /// </summary>
+        private static void BuildQuickLookup()
+        {
+            quickLookup.Clear();
+
+            foreach (var mod in conflictDatabase)
+            {
+                if (string.IsNullOrWhiteSpace(mod.ModName))
+                    continue;
+
+                string cleanName = CleanModName(mod.ModName);
+
+                // Store with cleaned name as key (first match wins if duplicates)
+                if (!quickLookup.ContainsKey(cleanName))
+                {
+                    quickLookup[cleanName] = mod;
+                }
+            }
+        }
+
+        /// <summary>
         /// Parses a single CSV line, handling quoted fields properly
         /// </summary>
         private static List<string> ParseCSVLine(string line)
@@ -167,37 +194,52 @@ namespace The_Sims_4_Mod_Conflict_Manager
         }
 
         /// <summary>
-        /// Checks if a mod has known conflicts based on filename
+        /// Checks if a mod has known conflicts based on filename - OPTIMIZED VERSION with Levenshtein
         /// </summary>
         public static ModConflictInfo? CheckModConflict(string modFileName)
         {
-            if (conflictDatabase.Count == 0)
+            if (quickLookup.Count == 0)
                 return null;
 
             // Clean the mod filename for comparison
-            string cleanModName = Path.GetFileNameWithoutExtension(modFileName)
-                .ToLower()
-                .Replace("_", " ")
-                .Replace("-", " ")
-                .Replace(".", " ")
-                .Trim();
+            string cleanModName = CleanModName(Path.GetFileNameWithoutExtension(modFileName));
 
-            // Try exact match first
-            var exactMatch = conflictDatabase.FirstOrDefault(m =>
-                CleanModName(m.ModName) == cleanModName);
+            Console.WriteLine($"Looking for: '{cleanModName}' (length: {cleanModName.Length})");
 
-            if (exactMatch != null)
-                return exactMatch;
-
-            // Try partial match - check if database mod name is contained in file name
-            var partialMatch = conflictDatabase.FirstOrDefault(m =>
+            // Try exact match first (O(1) lookup)
+            if (quickLookup.TryGetValue(cleanModName, out var exactMatch))
             {
-                string dbModName = CleanModName(m.ModName);
-                return !string.IsNullOrEmpty(dbModName) &&
-                       (cleanModName.Contains(dbModName) || dbModName.Contains(cleanModName));
-            });
+                Console.WriteLine($"  EXACT MATCH found!");
+                return exactMatch;
+            }
 
-            return partialMatch;
+            // Try dictionary keys with Levenshtein
+            int checkedCount = 0;
+            int skipped = 0;
+            foreach (var kvp in quickLookup)
+            {
+                string dbModName = kvp.Key;
+
+                // Skip if lengths are too different (optimization - saves computation)
+                if (Math.Abs(cleanModName.Length - dbModName.Length) > dbModName.Length * 0.5)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                checkedCount++;
+                int distance = Levenshtein.GetDistance(cleanModName, dbModName);
+                double similarity = 1.0 - ((double)distance / Math.Max(cleanModName.Length, dbModName.Length));
+
+                if (similarity >= 0.35)
+                {
+                    Console.WriteLine($"  FUZZY MATCH: '{dbModName}' (similarity: {similarity:P})");
+                    return kvp.Value;
+                }
+            }
+
+            Console.WriteLine($"  No match (checked: {checkedCount}, skipped: {skipped})");
+            return null;
         }
 
         /// <summary>
