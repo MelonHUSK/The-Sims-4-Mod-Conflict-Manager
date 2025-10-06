@@ -177,8 +177,9 @@ namespace The_Sims_4_Mod_Conflict_Manager
 
             if (conflictInfo != null)
             {
-                // Mod found in database - interpret the patch status
+                // Mod found in database interpret the patch status
                 string interpretedStatus = ConflictDataLoader.InterpretPatchStatus(conflictInfo.PatchStatus);
+                System.Diagnostics.Debug.WriteLine($"  Mod: {modInfo.ModName} | PatchStatus: '{conflictInfo.PatchStatus}' | Interpreted as: '{interpretedStatus}'");
 
                 switch (interpretedStatus)
                 {
@@ -225,7 +226,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 else if (DBPFReader.IsScriptMod(filePath))
                 {
                     modInfo.Status = "⚠";
-                    modInfo.Issue = "Script mod - not in database, manual check recommended";
+                    modInfo.Issue = "Not in database, manual check recommended";
                     modInfo.ModName += " [SCRIPT]";
                     statusType = StatusType.Warning;
                 }

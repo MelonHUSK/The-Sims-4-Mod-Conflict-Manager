@@ -81,7 +81,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading package file {filePath}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error reading package file {filePath}: {ex.Message}");
             }
 
             return info;

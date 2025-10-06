@@ -56,7 +56,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading conflict data: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading conflict data: {ex.Message}");
                 return false;
             }
         }
@@ -129,7 +129,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Error parsing line: {line}. Error: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Error parsing line: {line}. Error: {ex.Message}");
                     }
                 }
             }
@@ -204,12 +204,12 @@ namespace The_Sims_4_Mod_Conflict_Manager
             // Clean the mod filename for comparison
             string cleanModName = CleanModName(Path.GetFileNameWithoutExtension(modFileName));
 
-            Console.WriteLine($"Looking for: '{cleanModName}' (length: {cleanModName.Length})");
+            System.Diagnostics.Debug.WriteLine($"Looking for: '{cleanModName}' (length: {cleanModName.Length})");
 
             // Try exact match first (O(1) lookup)
             if (quickLookup.TryGetValue(cleanModName, out var exactMatch))
             {
-                Console.WriteLine($"  EXACT MATCH found!");
+                System.Diagnostics.Debug.WriteLine($"  EXACT MATCH found!");
                 return exactMatch;
             }
 
@@ -233,12 +233,12 @@ namespace The_Sims_4_Mod_Conflict_Manager
 
                 if (similarity >= 0.50)
                 {
-                    Console.WriteLine($"  FUZZY MATCH: '{dbModName}' (similarity: {similarity:P})");
+                    System.Diagnostics.Debug.WriteLine($"  FUZZY MATCH: '{dbModName}' (similarity: {similarity:P})");
                     return kvp.Value;
                 }
             }
 
-            Console.WriteLine($"  No match (checked: {checkedCount}, skipped: {skipped})");
+            System.Diagnostics.Debug.WriteLine($"  No match (checked: {checkedCount}, skipped: {skipped})");
             return null;
         }
 
