@@ -50,11 +50,25 @@ namespace The_Sims_4_Mod_Conflict_Manager
             modsList.Clear();
             ResetStatistics();
 
-            StatusText.Text = "Scanning mods folder...";
+            StatusText.Text = "Loading conflict database from Google Sheets...";
             ScanProgressBar.Visibility = Visibility.Visible;
 
             try
             {
+                // Load the conflict data from Google Sheets
+                bool dataLoaded = ConflictDataLoader.LoadConflictData();
+
+                if (!dataLoaded)
+                {
+                    MessageBox.Show("Warning: Could not load conflict database from Google Sheets. Scanning will proceed without conflict detection.",
+                                    "Database Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+                else
+                {
+                    var stats = ConflictDataLoader.GetDatabaseStats();
+                    StatusText.Text = $"Database loaded: {stats.total} known mods. Scanning folder...";
+                }
+
                 // Get all .package files recursively
                 string[] packageFiles = Directory.GetFiles(selectedModsFolder, "*.package", SearchOption.AllDirectories);
 
@@ -70,7 +84,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 {
                     FileInfo fileInfo = new FileInfo(filePath);
 
-                    // Parse the .package file to extract metadata
+                    // Parse the .package file to extract basic metadata
                     DBPFReader.PackageInfo packageInfo = DBPFReader.ReadPackageFile(filePath);
 
                     // Create a ModInfo object with parsed data
@@ -83,26 +97,69 @@ namespace The_Sims_4_Mod_Conflict_Manager
                         Issue = "No issues detected"
                     };
 
-                    // Check if it's a valid DBPF file
-                    if (!packageInfo.IsValid)
+                    // Check against the conflict database
+                    var conflictInfo = ConflictDataLoader.CheckModConflict(mod.ModName);
+
+                    if (conflictInfo != null)
                     {
-                        mod.Status = "⚠";
-                        mod.Issue = "Not a valid DBPF package file";
-                        warnings++;
-                    }
-                    // Check if it's a script mod (higher conflict risk)
-                    else if (DBPFReader.IsScriptMod(filePath))
-                    {
-                        mod.Status = "⚠";
-                        mod.Issue = "Script mod - may require updates for new game versions";
-                        mod.ModName += " [SCRIPT]";
-                        warnings++;
+                        // Mod found in database - interpret the patch status
+                        string interpretedStatus = ConflictDataLoader.InterpretPatchStatus(conflictInfo.PatchStatus);
+
+                        switch (interpretedStatus)
+                        {
+                            case "conflict":
+                                mod.Status = "✗";
+                                mod.Issue = $"{conflictInfo.PatchStatus}";
+                                if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
+                                    mod.Issue += $" - {conflictInfo.Notes}";
+                                conflicts++;
+                                break;
+
+                            case "warning":
+                                mod.Status = "⚠";
+                                mod.Issue = $"{conflictInfo.PatchStatus}";
+                                if (!string.IsNullOrWhiteSpace(conflictInfo.Notes))
+                                    mod.Issue += $" - {conflictInfo.Notes}";
+                                warnings++;
+                                break;
+
+                            case "compatible":
+                                mod.Status = "✓";
+                                mod.Issue = $"{conflictInfo.PatchStatus}";
+                                if (!string.IsNullOrWhiteSpace(conflictInfo.LastKnownUpdate))
+                                    mod.Issue += $" (Updated: {conflictInfo.LastKnownUpdate})";
+                                compatible++;
+                                break;
+
+                            default:
+                                mod.Status = "?";
+                                mod.Issue = $"Unknown status: {conflictInfo.PatchStatus}";
+                                warnings++;
+                                break;
+                        }
                     }
                     else
                     {
-                        mod.Status = "✓";
-                        mod.Issue = $"Contains {packageInfo.ResourceCount} resources";
-                        compatible++;
+                        // Mod not in database - do basic checks
+                        if (!packageInfo.IsValid)
+                        {
+                            mod.Status = "⚠";
+                            mod.Issue = "Not a valid DBPF package file";
+                            warnings++;
+                        }
+                        else if (DBPFReader.IsScriptMod(filePath))
+                        {
+                            mod.Status = "⚠";
+                            mod.Issue = "Script mod - not in database, manual check recommended";
+                            mod.ModName += " [SCRIPT]";
+                            warnings++;
+                        }
+                        else
+                        {
+                            mod.Status = "?";
+                            mod.Issue = "Not found in conflict database - status unknown";
+                            warnings++;
+                        }
                     }
 
                     modsList.Add(mod);
