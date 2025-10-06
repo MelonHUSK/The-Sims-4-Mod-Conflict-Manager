@@ -231,7 +231,7 @@ namespace The_Sims_4_Mod_Conflict_Manager
                 int distance = Levenshtein.GetDistance(cleanModName, dbModName);
                 double similarity = 1.0 - ((double)distance / Math.Max(cleanModName.Length, dbModName.Length));
 
-                if (similarity >= 0.35)
+                if (similarity >= 0.50)
                 {
                     Console.WriteLine($"  FUZZY MATCH: '{dbModName}' (similarity: {similarity:P})");
                     return kvp.Value;
@@ -248,9 +248,9 @@ namespace The_Sims_4_Mod_Conflict_Manager
         private static string CleanModName(string modName)
         {
             return modName.ToLower()
-                .Replace("_", " ")
-                .Replace("-", " ")
-                .Replace(".", " ")
+                .Replace("_", "")
+                .Replace("-", "")
+                .Replace(".", "")
                 .Trim();
         }
 
